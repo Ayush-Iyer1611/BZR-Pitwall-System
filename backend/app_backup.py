@@ -1,7 +1,5 @@
-from fastapi import FastAPI, UploadFile, File
+from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-import shutil
-import json
 
 from loader import TelemetryLoader
 from replay import ReplayEngine
@@ -24,9 +22,6 @@ replay = ReplayEngine(df)
 
 sensor_history = {}
 
-with open("sensors.json", "r") as f:
-    SENSOR_METADATA = json.load(f)
-
 VEHICLE_COLUMNS = {
     "time",
     "rpm",
@@ -48,7 +43,7 @@ def get_cluster(sensor_name):
         "yaw",
         "roll",
         "pitch",
-        "suspension",
+        "suspension"
     ]
 
     powertrain = [
@@ -57,7 +52,7 @@ def get_cluster(sensor_name):
         "rpm",
         "motor",
         "torque",
-        "throttle",
+        "throttle"
     ]
 
     electrical = [
@@ -66,7 +61,7 @@ def get_cluster(sensor_name):
         "current",
         "imd",
         "bms",
-        "cell",
+        "cell"
     ]
 
     if any(x in name for x in dynamics):
@@ -81,6 +76,30 @@ def get_cluster(sensor_name):
     return "c1"
 
 
+@app.post("/play")
+def play():
+    replay.play()
+    return {"status": "playing"}
+
+
+@app.post("/pause")
+def pause():
+    replay.pause()
+    return {"status": "paused"}
+
+
+@app.post("/reset")
+def reset():
+    replay.reset()
+    return {"status": "reset"}
+
+@app.get("/export")
+def export():
+
+    return {
+        "rows": len(df),
+        "columns": list(df.columns)
+    }
 @app.get("/health")
 def health():
 
@@ -90,54 +109,6 @@ def health():
         "current_index": replay.current_index,
         "playing": replay.is_playing,
     }
-
-
-@app.post("/play")
-def play():
-
-    replay.play()
-
-    return {"status": "playing"}
-
-
-@app.post("/pause")
-def pause():
-
-    replay.pause()
-
-    return {"status": "paused"}
-
-
-@app.post("/reset")
-def reset():
-
-    replay.reset()
-
-    return {"status": "reset"}
-
-
-@app.post("/upload")
-async def upload_csv(file: UploadFile = File(...)):
-
-    global df
-    global replay
-    global sensor_history
-
-    with open("sample.csv", "wb") as buffer:
-        shutil.copyfileobj(file.file, buffer)
-
-    df = loader.load_csv("sample.csv")
-
-    replay = ReplayEngine(df)
-
-    sensor_history = {}
-
-    return {
-        "status": "success",
-        "rows": len(df),
-        "columns": list(df.columns),
-    }
-
 
 @app.get("/telemetry")
 def get_telemetry():
@@ -168,25 +139,15 @@ def get_telemetry():
             }
         )
 
-        sensor_history[sensor_id] = (
-            sensor_history[sensor_id][-200:]
-        )
-
-        metadata = SENSOR_METADATA.get(
-            column,
-            {
-                "unit": "",
-                "cluster": get_cluster(column)
-            }
-        )
+        sensor_history[sensor_id] = sensor_history[sensor_id][-200:]
 
         sensors.append(
             {
                 "id": sensor_id,
                 "name": column,
                 "sensorId": column,
-                "unit": metadata["unit"],
-                "clusterId": metadata["cluster"],
+                "unit": "",
+                "clusterId": get_cluster(column),
                 "status": "active",
                 "currentValue": float(latest[column]),
                 "history": sensor_history[sensor_id],
@@ -197,13 +158,9 @@ def get_telemetry():
         "vehicleStats": {
             "rpm": int(latest["rpm"]),
             "gear": int(latest["gear"]),
-            "batteryVoltage": float(
-                latest["batteryVoltage"]
-            ),
+            "batteryVoltage": float(latest["batteryVoltage"]),
             "speed": float(latest["speed"]),
-            "engineTemp": float(
-                latest["engineTemp"]
-            ),
+            "engineTemp": float(latest["engineTemp"]),
         },
         "sensors": sensors,
     }

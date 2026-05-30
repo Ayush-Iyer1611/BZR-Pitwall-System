@@ -1,0 +1,21 @@
+{
+    "imu_x": {
+        "unit": "g",
+        "cluster": "c1"
+    },
+
+    "imu_y": {
+        "unit": "g",
+        "cluster": "c1"
+    },
+
+    "afr": {
+        "unit": "AFR",
+        "cluster": "c2"
+    },
+
+    "egt": {
+        "unit": "°C",
+        "cluster": "c2"
+    }
+}
